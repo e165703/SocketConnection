@@ -6,9 +6,14 @@ import android.os.Environment;
 import android.support.annotation.RequiresApi;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+
+import java.io.BufferedWriter;
+import java.io.OutputStreamWriter;
+import java.net.ConnectException;
 import java.util.List;
 import java.io.InputStream;
 import java.io.Reader;
+import java.io.OutputStream;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ProgressBar;
@@ -30,10 +35,11 @@ public class MainActivity extends AppCompatActivity {
     private TextView textView;
     private TextView textView_2;
     private TextView textView_3;
+    private TextView textView_4;
 
     private ProgressDialog mProgressDialog;
-
-    final static int PORT = 8001;
+    final static String HOST = "192.168.0.4";
+    final static int PORT = 5000;
     private boolean flag = false;
     private boolean flag_2 = false;
     //File file = new File(getApplicationContext().getFilesDir()+"test.txt");
@@ -45,10 +51,12 @@ public class MainActivity extends AppCompatActivity {
         textView = findViewById(R.id.textView);
         textView_2 = findViewById(R.id.textView_2);
         textView_3 = findViewById(R.id.textView_3);
+        textView_4 = findViewById(R.id.textView_4);
         //final String path = Environment.getExternalStorageDirectory().getPath();
         Button button = findViewById(R.id.button);
         Button button2 = findViewById(R.id.button2);
         Button button3 = findViewById(R.id.button_3);
+        Button button4 = findViewById(R.id.button_4);
 
         mProgressDialog = new ProgressDialog(MainActivity.this);
         mProgressDialog.setMessage("A A A");
@@ -56,7 +64,12 @@ public class MainActivity extends AppCompatActivity {
         mProgressDialog.setMax(100);
         mProgressDialog.setProgressStyle(ProgressDialog.STYLE_HORIZONTAL);
 
-
+        button4.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                Socket_Connection_AsyncTask();
+            }
+        });
         button3.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -163,23 +176,7 @@ public class MainActivity extends AppCompatActivity {
                     Socket       socket       = serverSocket.accept();
                     int count = 0;
 
-
-
-
-
-
-
-
-
-
-
                     BufferedReader reader = new BufferedReader(new InputStreamReader((socket.getInputStream())));//受信したデータの行数を取得して、readline()で一行ずつファイルに書き込む際、ProgressDiaLogで進捗状況を確認したい
-                    /*if(reader_2.equals(reader)){
-                        whicch_go = "Yes";
-                    }else{
-                        whicch_go = "No";
-                    }*/
-
 
 
                     filename_1 = reader.readLine(); //一回目のreadlineで受け取るデータはファイル名: これを取得し、相手側と同じファイル名に出力できる。
@@ -198,29 +195,22 @@ public class MainActivity extends AppCompatActivity {
                     reader.close();
                     socket.close();
                     serverSocket.close();
-                    /*while(receive_data != null){
-                        receive_data = reader.readLine();
-                        if(receive_data != null) {
-                            count_1 += 1;
-                            //publishProgress(count_1*100/count);
-                            fileOutputStream.write(receive_data.getBytes());
-                            fileOutputStream.write("\n".getBytes()); //改行コードの挿入
-                      }
-                    }*/
+
 
                     for (int i=0;i<Answer.size();i++){
                         fileOutputStream.write(Answer.get(i).getBytes());
                         fileOutputStream.write("\n".getBytes());
                         count_1 += 1;
                         publishProgress(count_1*100/count);
+                        if(count_1*100/count == 100){
+                            publishProgress(0);
+                            mProgressDialog.dismiss();
+                        }
                     }
 
                     fileOutputStream.flush();
                     fileOutputStream.close();
 
-                    //reader.close();
-                    //socket.close();
-                    //serverSocket.close();
 
                 } catch (IOException e) {
                     e.printStackTrace();
@@ -242,6 +232,68 @@ public class MainActivity extends AppCompatActivity {
             }
 
 
+        };
+        task.execute();
+    }
+    public void Socket_Connection_AsyncTask(){
+        textView_4.setText("データ送信中");
+        AsyncTask<Void,Integer,String> task = new AsyncTask<Void, Integer, String>() {
+            @Override
+            protected String doInBackground(Void... Voids){
+                byte[] buffer = new byte[512];
+                String a = "送信しました!";
+                List<String> Answer_2 = new ArrayList<String>();
+                String file_name = "test.pdf"+"\n";
+                try {
+                    Socket socket = new Socket(HOST, PORT);
+                    FileInputStream inputStream = openFileInput("test.pdf");
+                    BufferedReader reader_2 = new BufferedReader(new InputStreamReader(inputStream));
+                    BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream()));
+                    writer.write(file_name,0,file_name.length());
+
+                    String FileLength;
+                    while((FileLength = reader_2.readLine()) != null){
+                        Answer_2.add(FileLength);
+                    }
+                    for (int i=1;i<Answer_2.size()+1;i++){
+                        writer.write(Answer_2.get(i-1));
+                        publishProgress(i*100/Answer_2.size());
+                        if(i*100/Answer_2.size() == 100){
+                            publishProgress(0);
+                            mProgressDialog.dismiss();
+                        }
+                    }
+
+                    while((FileLength = reader_2.readLine()) != null){
+                        writer.write(FileLength,0,FileLength.length());
+                    }
+                    writer.flush();
+                    writer.close();
+                    inputStream.close();
+                    socket.close();
+
+                }catch (IOException e){
+                    a = "送信に失敗しました！";
+                    publishProgress(0);
+                    mProgressDialog.dismiss();
+
+                    e.printStackTrace();
+                }
+                return a;
+            }
+            @Override
+            protected void onPostExecute(String string){
+                textView_4.setText(string);
+            }
+            @Override
+            protected void onPreExecute() {
+                super.onPreExecute();
+                mProgressDialog.show();
+            }
+            @Override
+            protected void onProgressUpdate(Integer... progress) {
+                mProgressDialog.setProgress(progress[0]);
+            }
         };
         task.execute();
     }
