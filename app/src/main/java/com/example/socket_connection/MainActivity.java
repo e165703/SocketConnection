@@ -58,6 +58,11 @@ public class MainActivity extends AppCompatActivity {
         Button button3 = findViewById(R.id.button_3);
         Button button4 = findViewById(R.id.button_4);
 
+        if(Build.VERSION.SDK_INT >= 23){
+            checkPermission();
+        }
+
+
         mProgressDialog = new ProgressDialog(MainActivity.this);
         mProgressDialog.setMessage("A A A");
         mProgressDialog.setIndeterminate(false);
