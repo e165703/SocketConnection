@@ -1,15 +1,29 @@
 package com.example.socket_connection;
-
+import android.os.Build;
+import android.support.v4.content.ContextCompat;
+import android.support.v7.app.AppCompatActivity;
+import android.os.Bundle;
+import android.Manifest;
+import android.content.pm.PackageManager;
+import android.support.v4.app.ActivityCompat;
+import android.content.Intent;
+import android.widget.CompoundButton;
+import android.widget.Toast;
 import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Environment;
 import android.support.annotation.RequiresApi;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
-
+import android.os.Build;
+import android.support.annotation.NonNull;
+import android.support.v4.content.ContextCompat;
+import android.support.v4.app.ActivityCompat;
+import android.support.v7.app.AppCompatActivity;
 import java.io.BufferedWriter;
 import java.io.OutputStreamWriter;
 import java.net.ConnectException;
+import android.Manifest;
 import java.util.List;
 import java.io.InputStream;
 import java.io.Reader;
@@ -36,7 +50,9 @@ public class MainActivity extends AppCompatActivity {
     private TextView textView_2;
     private TextView textView_3;
     private TextView textView_4;
-
+    private final int REQUEST_PERMISSION = 1000;
+    private String a;
+    private Thread thread = new Thread();
     private ProgressDialog mProgressDialog;
     final static String HOST = "192.168.0.4";
     final static int PORT = 5000;
@@ -48,6 +64,12 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        CompoundButton toggle = (CompoundButton)findViewById(R.id.toggle_switch);
+
+        //a = getApplicationContext().getFilesDir().toString();
+        a = Environment.getExternalStorageDirectory().toString();
+
         textView = findViewById(R.id.textView);
         textView_2 = findViewById(R.id.textView_2);
         textView_3 = findViewById(R.id.textView_3);
@@ -57,10 +79,6 @@ public class MainActivity extends AppCompatActivity {
         Button button2 = findViewById(R.id.button2);
         Button button3 = findViewById(R.id.button_3);
         Button button4 = findViewById(R.id.button_4);
-
-        if(Build.VERSION.SDK_INT >= 23){
-            checkPermission();
-        }
 
 
         mProgressDialog = new ProgressDialog(MainActivity.this);
@@ -85,7 +103,6 @@ public class MainActivity extends AppCompatActivity {
         button2.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-
                 File_delete();
             }
         });
@@ -94,7 +111,7 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onClick(View view){
                 if(flag){
-                    textView.setText("Hello");
+                    textView.setText(a);
                     //File_output();
                     flag = false;
                 }
@@ -102,6 +119,22 @@ public class MainActivity extends AppCompatActivity {
                     File_input();
                     //textView.setText("World");
                     flag = true;
+                }
+            }
+        });
+        toggle.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton compoundButton, boolean isChecked) {
+                if(isChecked){
+                    if(Build.VERSION.SDK_INT >= 23){
+                        checkPermission();
+                    }else{
+                        //FtpS(PackageManager.PERMISSION_GRANTED);
+                        FtpS(a);
+                    }
+                }else{
+                    FtpServer_2 ftpServer_2 = new FtpServer_2();
+                    ftpServer_2.Ftp_Server_Stop();
                 }
             }
         });
@@ -129,6 +162,13 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
             textView.setText(text_contents);
+            if (ContextCompat.checkSelfPermission(this,
+                    Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                    == PackageManager.PERMISSION_GRANTED){
+                textView.setText("パーミッションが取れています");
+            }else {
+                textView.setText("パーミッションが取れていません");
+            }
         }catch (IOException e){
             e.printStackTrace();
         }
@@ -301,5 +341,62 @@ public class MainActivity extends AppCompatActivity {
             }
         };
         task.execute();
+    }
+    public void checkPermission() {
+        // 既に許可している
+        if (ContextCompat.checkSelfPermission(this,
+                Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                == PackageManager.PERMISSION_GRANTED){
+
+            //FtpS(PackageManager.PERMISSION_GRANTED);
+            FtpS(a);
+        }
+        // 拒否していた場合
+        else{
+            requestLocationPermission();
+        }
+    }
+    private void requestLocationPermission() {
+        if (ActivityCompat.shouldShowRequestPermissionRationale(this,
+                Manifest.permission.WRITE_EXTERNAL_STORAGE)) {
+            ActivityCompat.requestPermissions(MainActivity.this,
+                    new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE},
+                    REQUEST_PERMISSION);
+        } else {
+            Toast toast = Toast.makeText(this,
+                    "許可されないとアプリが実行できません", Toast.LENGTH_SHORT);
+            toast.show();
+
+            ActivityCompat.requestPermissions(this,
+                    new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE,},
+                    REQUEST_PERMISSION);
+        }
+    }
+    @Override
+    public void onRequestPermissionsResult(int requestCode,
+                                           @NonNull String[] permissions,
+                                           @NonNull int[] grantResults) {
+        if (requestCode == REQUEST_PERMISSION) {
+
+            // 使用が許可された
+            if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                FtpS(a);
+
+            } else {
+                // それでも拒否された時の対応
+                Toast toast = Toast.makeText(this,
+                        "これ以上なにもできません", Toast.LENGTH_SHORT);
+                toast.show();
+            }
+        }
+    }
+    private void FtpS(final String a) {
+        final FtpServer_2 ftpServer_2 = new FtpServer_2();
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                ftpServer_2.Ftp(a);
+            }
+        }).start();
     }
 }
