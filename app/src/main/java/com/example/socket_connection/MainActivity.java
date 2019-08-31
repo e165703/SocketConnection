@@ -1,5 +1,7 @@
 package com.example.socket_connection;
+import android.content.res.AssetManager;
 import android.os.Build;
+import android.os.Handler;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
@@ -7,6 +9,7 @@ import android.Manifest;
 import android.content.pm.PackageManager;
 import android.support.v4.app.ActivityCompat;
 import android.content.Intent;
+import android.util.Log;
 import android.widget.CompoundButton;
 import android.widget.Toast;
 import android.os.AsyncTask;
@@ -22,6 +25,7 @@ import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
 import java.io.BufferedWriter;
 import java.io.OutputStreamWriter;
+import java.io.StringReader;
 import java.net.ConnectException;
 import android.Manifest;
 import java.util.List;
@@ -50,6 +54,9 @@ public class MainActivity extends AppCompatActivity {
     private TextView textView_2;
     private TextView textView_3;
     private TextView textView_4;
+    static TextView textView_5;
+    static public TextView textView_6;
+
     private final int REQUEST_PERMISSION = 1000;
     private String a;
     private Thread thread = new Thread();
@@ -66,6 +73,7 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
 
         CompoundButton toggle = (CompoundButton)findViewById(R.id.toggle_switch);
+        CompoundButton toggle_2 = (CompoundButton)findViewById(R.id.toggle_switch_2);
 
         //a = getApplicationContext().getFilesDir().toString();
         a = Environment.getExternalStorageDirectory().toString();
@@ -74,6 +82,10 @@ public class MainActivity extends AppCompatActivity {
         textView_2 = findViewById(R.id.textView_2);
         textView_3 = findViewById(R.id.textView_3);
         textView_4 = findViewById(R.id.textView_4);
+        textView_5 = findViewById(R.id.Http_textView);
+        textView_6 = findViewById(R.id.scrollView);
+
+
         //final String path = Environment.getExternalStorageDirectory().getPath();
         Button button = findViewById(R.id.button);
         Button button2 = findViewById(R.id.button2);
@@ -112,7 +124,7 @@ public class MainActivity extends AppCompatActivity {
             public void onClick(View view){
                 if(flag){
                     textView.setText(a);
-                    //File_output();
+                    File_output();
                     flag = false;
                 }
                 else{
@@ -138,6 +150,16 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
         });
+        toggle_2.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton compoundButton, boolean isChecked) {
+                if(isChecked){
+                    HttpServerStart();
+                }else {
+                    HttpServerStop();
+                }
+            }
+        });
     }
     public void File_output(){
         try {
@@ -151,23 +173,29 @@ public class MainActivity extends AppCompatActivity {
     }
     public void File_input(){
         try{
-            FileInputStream fileInputStream = openFileInput("test.txt");
-            BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(fileInputStream,"UTF-8"));
-            String lineBuffer = bufferedReader.readLine();//readlineは一行のみ
-            String text_contents = lineBuffer;
-            while(lineBuffer != null){
-                lineBuffer = bufferedReader.readLine();
-                if(lineBuffer != null){
-                    text_contents = text_contents+"\n"+lineBuffer;
+            File file = this.getFileStreamPath("test.txt");
+            boolean fileExists = file.exists();
+            if(fileExists == true) {
+                FileInputStream fileInputStream = openFileInput("test.txt");
+                BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(fileInputStream, "UTF-8"));
+                String lineBuffer = bufferedReader.readLine();//readlineは一行のみ
+                String text_contents = lineBuffer;
+                while (lineBuffer != null) {
+                    lineBuffer = bufferedReader.readLine();
+                    if (lineBuffer != null) {
+                        text_contents = text_contents + "\n" + lineBuffer;
+                    }
                 }
-            }
-            textView.setText(text_contents);
-            if (ContextCompat.checkSelfPermission(this,
-                    Manifest.permission.WRITE_EXTERNAL_STORAGE)
-                    == PackageManager.PERMISSION_GRANTED){
-                textView.setText("パーミッションが取れています");
-            }else {
-                textView.setText("パーミッションが取れていません");
+                textView.setText(text_contents);
+                if (ContextCompat.checkSelfPermission(this,
+                        Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                        == PackageManager.PERMISSION_GRANTED) {
+                    textView.setText("パーミッションが取れています");
+                } else {
+                    textView.setText("パーミッションが取れていません");
+                }
+            }else{
+                textView.setText("ファイルが存在しません");
             }
         }catch (IOException e){
             e.printStackTrace();
@@ -182,6 +210,18 @@ public class MainActivity extends AppCompatActivity {
         }else{
             textView_2.setText("ファイルが存在しません。");
         }
+
+        /*
+        AssetManager assetManager = getResources().getAssets();
+        String[] fileList = null;
+        try {
+            fileList = assetManager.list(""); // Assetsからリソースを読み出す、備忘録。
+        }catch (IOException e){
+            e.printStackTrace();
+        }
+        for(String files : fileList){
+            Log.d("assets:",files);
+        }*/
     }
 
     public void Socket_Server(){
@@ -398,5 +438,85 @@ public class MainActivity extends AppCompatActivity {
                 ftpServer_2.Ftp(a);
             }
         }).start();
+    }
+    private void HttpServerStart() {
+        final Handler handler = new Handler();
+        final Android_http_server server = new Android_http_server(this);
+        textView_5.setText("Server Start!!");
+        Log.d("a","aaa");
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                    final String a = server.Request_message();
+                    handler.post(new Runnable() {
+                        @Override
+                        public void run() {
+                            textView_6.setText(a);
+                        }
+                    });
+            }
+        }).start();
+        /*AsyncTask<String,String,String> task = new AsyncTask<String, String, String>() {
+            // 非同期処理
+            String result;
+            @Override
+            protected String doInBackground(String... params) {
+                try {
+                    ServerSocket server = new ServerSocket(5000);
+                    Socket socket = server.accept();
+                    String readline;
+                    result = "";
+                    BufferedReader reader = new BufferedReader(new InputStreamReader((socket.getInputStream())));
+                    readline = reader.readLine();
+                    int counter = 0;
+                    while (readline != null){
+                        result = result +readline + "\n";
+                        if(reader.ready()) {
+                            readline = reader.readLine();
+                        }else{
+                            readline = null;
+                        }
+                    }
+
+                    reader.close();
+                    socket.close();
+                    server.close();
+                }catch (IOException e){
+                    Log.d("error", "~~~~~~error~~~~~~~~");
+                    e.printStackTrace();
+                }
+                return result ;
+            }
+
+            // 途中経過をメインスレッドに返す
+            @Override
+            protected void onProgressUpdate(String... progress) {
+                // ...
+            }
+
+            // 非同期処理が終了後、結果をメインスレッドに返す
+            @Override
+            protected void onPostExecute(String integer) {
+                // ...
+                textView_6.setText(integer);
+            }
+            @Override
+            protected void onPreExecute() {
+                super.onPreExecute();
+            }
+        };
+        task.execute();*/
+    }
+    private void HttpServerStop(){
+        final Android_http_server server_stop = new Android_http_server(this);
+        final Handler handler = new Handler();
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                server_stop.Server_stop();
+            }
+        }).start();
+        textView_5.setText("Server Stop!");
+        textView_6.setText("Hello");
     }
 }
